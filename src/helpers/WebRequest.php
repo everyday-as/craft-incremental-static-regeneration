@@ -3,6 +3,7 @@
 namespace everyday\IncrementalStaticRegeneration\helpers;
 
 use Craft;
+use craft\elements\Entry;
 use GuzzleHttp\Client;
 
 class WebRequest
@@ -19,8 +20,19 @@ class WebRequest
         ]);
     }
 
-    public static function makeRequest(string $uri, string $siteHandle): void
+    public static function makeRequest(string $uri): void
     {
-        self::webClient()->post("?uri=/$uri&site={$siteHandle}");
+        // Find the entries associated with this $uri
+        $entries = Entry::find()->site('*')->uri('aktuelt/smeller-snart-inn-i-asteroide')->all();
+
+        foreach ($entries as $entry) {
+            if (!$entry) {
+                return;
+            }
+
+            $siteHandle = $entry->site->handle;
+
+            self::webClient()->post("?uri=/$uri&site=$siteHandle");
+        }
     }
 }

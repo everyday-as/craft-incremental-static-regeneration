@@ -10,18 +10,15 @@ class MakeRequest extends BaseJob
 {
     public string $uri;
 
-    public string $siteHandle;
-
     public function execute($queue): void
     {
-        WebRequest::makeRequest($this->uri, $this->siteHandle);
+        WebRequest::makeRequest($this->uri);
     }
 
     protected function defaultDescription(): ?string
     {
-        return Craft::t('app', 'Performing ISR for "{uri}" on site "{siteHandle}"', [
+        return Craft::t('app', 'Triggering ISR for "{uri}"', [
             'uri' => $this->uri,
-            'siteHandle' => $this->siteHandle
         ]);
     }
 }

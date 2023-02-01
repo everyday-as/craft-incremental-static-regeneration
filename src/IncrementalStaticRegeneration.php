@@ -33,20 +33,20 @@ class IncrementalStaticRegeneration extends \craft\base\Plugin
     {
         $relatedEntries = Entry::find()->relatedTo($element)->all();
 
-        return array_map(static fn($entry) => [$entry->uri, $entry->site->handle], $relatedEntries);
+        return array_map(static fn($entry) => $entry->uri, $relatedEntries);
     }
 
     private function getAllUris(): array
     {
         $entries = Entry::find()->uri(':notempty:')->all();
 
-        return array_map(static fn($entry) => [$entry->uri, $entry->site->handle], $entries);
+        return array_map(static fn($entry) => $entry->uri, $entries);
     }
 
     private function entryEvent(ModelEvent|Event $event, ?Settings $settings): ?array
     {
         foreach ($event->sender->section->entryTypes as $entryType) {
-            if (in_array($entryType->handle, $settings?->excludedSections[$event->sender->section->handle],
+            if (in_array($entryType->handle, $settings->excludedSections[$event->sender->section->handle] ?? [],
                 true)) {
                 return null;
             }
@@ -61,7 +61,7 @@ class IncrementalStaticRegeneration extends \craft\base\Plugin
 
         return [
             ...$this->getRelatedUris($event->sender),
-            [$event->sender->uri, $event->sender->site->handle],
+            $event->sender->uri,
         ];
     }
 
@@ -81,7 +81,7 @@ class IncrementalStaticRegeneration extends \craft\base\Plugin
         if (!$settings?->enableGlobalSets
             || !$event->sender->enabled
             || !$event->sender->getEnabledForSite()
-            || in_array($event->sender->handle, $settings?->excludedGlobalSets, true)) {
+            || in_array($event->sender->handle, $settings?->excludedGlobalSets ?? [], true)) {
             return null;
         }
 
@@ -155,15 +155,13 @@ class IncrementalStaticRegeneration extends \craft\base\Plugin
                             return;
                         }
 
-                        foreach ($result as $row) {
-                            [$uri, $siteHandle] = $row;
-                            if (!$uri || !$siteHandle) {
+                        foreach ($result as $uri) {
+                            if (!$uri) {
                                 continue;
                             }
 
                             $this->queue->push(new MakeRequest([
-                                'uri'        => $uri,
-                                'siteHandle' => $siteHandle,
+                                'uri' => $uri,
                             ]));
                         }
                     }

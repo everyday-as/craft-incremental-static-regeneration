@@ -1,5 +1,6 @@
 {
   "name": "everyday/incremental-static-regeneration",
+  "version": "1.0.0",
   "description": "A plugin that watches your entry changes and pings a URL of your choice",
   "type": "craft-plugin",
   "keywords": ["incremental", "static", "regeneration", "nextjs"],
