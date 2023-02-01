@@ -70,8 +70,7 @@ class IncrementalStaticRegeneration extends Plugin
             return null;
         }
 
-        if (!$event->sender->enabled
-            || ElementHelper::isDraft($event->sender)
+        if (ElementHelper::isDraft($event->sender)
             || !$event->sender->getEnabledForSite()
             || ElementHelper::isRevision($event->sender)) {
             return null;
