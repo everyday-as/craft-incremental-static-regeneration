@@ -4,6 +4,7 @@ namespace everyday\IncrementalStaticRegeneration;
 
 use Craft;
 use craft\base\Element;
+use craft\base\Plugin;
 use craft\elements\Asset;
 use craft\elements\Entry;
 use craft\elements\GlobalSet;
@@ -14,7 +15,7 @@ use everyday\IncrementalStaticRegeneration\models\Settings;
 use yii\base\Event;
 use yii\queue\Queue;
 
-class IncrementalStaticRegeneration extends \craft\base\Plugin
+class IncrementalStaticRegeneration extends Plugin
 {
     public const PLUGIN_HANDLE = "incremental-static-regeneration";
 
@@ -31,9 +32,13 @@ class IncrementalStaticRegeneration extends \craft\base\Plugin
 
     private function getRelatedUris(Element $element): array
     {
-        $relatedEntries = Entry::find()->relatedTo($element)->all();
+        $entries = array_filter(Entry::find()
+                                     ->site('*')
+                                     ->uri(':notempty:')
+                                     ->relatedTo($element)
+                                     ->all(), fn($entry) => !$this->entryEntryTypeDisabled($entry));
 
-        return array_map(static fn($entry) => $entry->uri, $relatedEntries);
+        return array_map(static fn($entry) => $entry->uri, $entries);
     }
 
     private function entryEntryTypeDisabled(Entry $entry): bool
@@ -83,6 +88,7 @@ class IncrementalStaticRegeneration extends \craft\base\Plugin
         $settings = $this->getSettings();
 
         if (!$settings?->enableAssets
+            || !$event->sender->propagating
             || !$event->sender->enabled
             || !$event->sender->getEnabledForSite()) {
             return null;

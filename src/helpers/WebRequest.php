@@ -23,7 +23,7 @@ class WebRequest
     public static function makeRequest(string $uri): void
     {
         // Find the entries associated with this $uri
-        $entries = Entry::find()->site('*')->uri('aktuelt/smeller-snart-inn-i-asteroide')->all();
+        $entries = Entry::find()->site('*')->uri($uri)->all();
 
         foreach ($entries as $entry) {
             if (!$entry) {
