@@ -36,20 +36,33 @@ class IncrementalStaticRegeneration extends \craft\base\Plugin
         return array_map(static fn($entry) => $entry->uri, $relatedEntries);
     }
 
+    private function entryEntryTypeDisabled(Entry $entry): bool
+    {
+        $settings = $this->getSettings();
+
+        foreach ($entry->section->entryTypes as $entryType) {
+            if (in_array($entryType->handle, $settings->excludedSections[$entry->section->handle] ?? [],
+                true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function getAllUris(): array
     {
-        $entries = Entry::find()->uri(':notempty:')->all();
+        $entries = array_filter(Entry::find()
+                                     ->uri(':notempty:')
+                                     ->all(), fn($entry) => !$this->entryEntryTypeDisabled($entry));
 
         return array_map(static fn($entry) => $entry->uri, $entries);
     }
 
-    private function entryEvent(ModelEvent|Event $event, ?Settings $settings): ?array
+    private function entryEvent(ModelEvent|Event $event): ?array
     {
-        foreach ($event->sender->section->entryTypes as $entryType) {
-            if (in_array($entryType->handle, $settings->excludedSections[$event->sender->section->handle] ?? [],
-                true)) {
-                return null;
-            }
+        if ($this->entryEntryTypeDisabled($event->sender)) {
+            return null;
         }
 
         if (!$event->sender->enabled
@@ -65,8 +78,10 @@ class IncrementalStaticRegeneration extends \craft\base\Plugin
         ];
     }
 
-    private function assetAfterSaveEvent(ModelEvent $event, ?Settings $settings): ?array
+    private function assetAfterSaveEvent(ModelEvent $event): ?array
     {
+        $settings = $this->getSettings();
+
         if (!$settings?->enableAssets
             || !$event->sender->enabled
             || !$event->sender->getEnabledForSite()) {
@@ -98,22 +113,22 @@ class IncrementalStaticRegeneration extends \craft\base\Plugin
             [
                 'class'   => Entry::class,
                 'event'   => Entry::EVENT_AFTER_SAVE,
-                'handler' => function (ModelEvent $event) use ($settings) {
-                    return $this->entryEvent($event, $settings);
+                'handler' => function (ModelEvent $event) {
+                    return $this->entryEvent($event);
                 },
             ],
             [
                 'class'   => Entry::class,
                 'event'   => Entry::EVENT_AFTER_DELETE,
-                'handler' => function (Event $event) use ($settings) {
-                    return $this->entryEvent($event, $settings);
+                'handler' => function (Event $event) {
+                    return $this->entryEvent($event);
                 },
             ],
             [
                 'class'   => Asset::class,
                 'event'   => Asset::EVENT_AFTER_SAVE,
-                'handler' => function (ModelEvent $event) use ($settings) {
-                    return $this->assetAfterSaveEvent($event, $settings);
+                'handler' => function (ModelEvent $event) {
+                    return $this->assetAfterSaveEvent($event);
                 },
             ],
             [
