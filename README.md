@@ -4,6 +4,12 @@ This plugin is best used with a front-end framework that supports [Incremental S
 
 The whole purpose of this plugin is to hit an API in your front-end, with the URI and siteHandle of the entry being updated, in order to trigger a rebuild of the front-end page.
 
+## Installation
+
+```
+composer require everyday/craft-incremental-static-regeneration
+```
+
 ## Features
 
 - Regenerate all pages when a global is updated.
