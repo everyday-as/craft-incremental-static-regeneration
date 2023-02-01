@@ -20,6 +20,9 @@ As an example, let's add support for [Retour](https://plugins.craftcms.com/retou
 ```php
 <?php
 
+use nystudio107\retour\events\RedirectEvent;
+use nystudio107\retour\services\Redirects;
+
 return [
 
     'additionalEvents' => [
