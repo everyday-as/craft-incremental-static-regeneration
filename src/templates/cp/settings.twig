@@ -1,0 +1,130 @@
+{% import "_includes/forms" as forms %}
+{% import "incremental-static-regeneration/cp/macros" as macros %}
+
+<div>
+    <h2>{{ 'ISR Endpoint'|t('incremental-static-regeneration') }}</h2>
+
+    {% if settings.hasErrors('global') %}
+        {% include "_includes/forms/errorList" with { errors: settings.getErrors('global') } %}
+    {% endif %}
+
+    {{ forms.textField({
+        first:        true,
+        label:        'Endpoint URL'|t('incremental-static-regeneration'),
+        instructions: 'The URL of your frontend API that will trigger an ISR'|t('incremental-static-regeneration'),
+        placeholder:  'http://localhost:3000/api/revalidate',
+        id:           'endpoint',
+        name:         'endpoint',
+        value:        settings['endpoint'],
+        errors:       settings.getErrors('endpoint'),
+        warning:      'endpoint' in overrides ? macros.configWarning('endpoint'),
+        disabled:     'endpoint' in overrides,
+    }) }}
+
+    {{ forms.passwordField({
+        label:        'Secret'|t('incremental-static-regeneration'),
+        instructions: 'The secret key we will send along the request in the `Authorization` header'|t('incremental-static-regeneration'),
+        placeholder:  '',
+        id:           'secret',
+        name:         'secret',
+        value:        settings['secret'],
+        errors:       settings.getErrors('secret'),
+        warning:      'secret' in overrides ? macros.configWarning('secret'),
+        disabled:     'secret' in overrides,
+    }) }}
+
+    <h2>{{ 'Assets'|t('incremental-static-regeneration') }}</h2>
+
+    {{ forms.lightswitch({
+        name:  "enableAssets",
+        id:  "enableAssets",
+        on:    settings['enableAssets'],
+        label: 'Enable re-validation of related entries when an asset is updated',
+        warning:  'enableAssets' in overrides ? macros.configWarning('enableAssets'),
+        disabled: 'enableAssets' in overrides,
+    }) }}
+
+    <h2>{{ 'Global Sets'|t('incremental-static-regeneration') }}</h2>
+
+    {{ forms.lightswitch({
+        name:  "enableGlobalSets",
+        id:  "enableGlobalSets",
+        on:    settings['enableGlobalSets'],
+        toggle: 'global_set_settings',
+        label: 'Enable re-validation of all entries when globalSets are updated',
+        warning:  'enableGlobalSets' in overrides ? macros.configWarning('enableGlobalSets'),
+        disabled: 'enableGlobalSets' in overrides,
+    }) }}
+
+    <div id="global_set_settings"{% if not settings['enableGlobalSets'] %} class="hidden" {% endif %}>
+        {% if 'excludedGlobalSets' in overrides %}
+            <p class="warning with-icon">{{ macros.configWarning('excludedGlobalSets') }}</p>
+        {% endif %}
+
+        <p class="light" style="padding-top: 20px;">{{ 'Exclude from ISR:'|t('incremental-static-regeneration') }}</p>
+        <div class="field">
+            <table id="entryTypes" class="shadow-box editable">
+                <thead>
+                <tr>
+                    <th scope="col" class="thin">{{ 'Global'|t('incremental-static-regeneration') }}</th>
+                    <th scope="col" class="thin"></th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for global in craft.app.globals.allSets %}
+                    <tr data-id="default">
+                        <td>{{ global.name }} ({{ global.handle }})</td>
+                        <td>
+                            {{ forms.lightswitch({
+                                name:  "excludedGlobalSets[]",
+                                value: global.handle,
+                                on:    global.handle in settings['excludedGlobalSets'],
+                                small: true,
+                            }) }}
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <h2>{{ 'Sections'|t('incremental-static-regeneration') }}</h2>
+
+    {% if 'excludedSections' in overrides %}
+        <p class="warning with-icon">{{ macros.configWarning('excludedSections') }}</p>
+    {% endif %}
+
+    <p class="light">{{ 'Exclude from ISR:'|t('incremental-static-regeneration') }}</p>
+    <div class="field">
+        <table id="entryTypes" class="shadow-box editable">
+            <thead>
+            <tr>
+                <th scope="col" class="thin">{{ 'Type'|t('incremental-static-regeneration') }}</th>
+                <th scope="col">{{ 'Section'|t('incremental-static-regeneration') }}</th>
+                <th scope="col">{{ 'Entry Type'|t('incremental-static-regeneration') }}</th>
+                <th scope="col" class="thin"></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for section in craft.app.sections.allSections %}
+                {% for entryType in section.entryTypes %}
+                    <tr data-id="default">
+                        <th>{{ section.type|ucfirst }}</th>
+                        <td>{{ section.name }} ({{ section.handle }})</td>
+                        <td>{{ entryType.name }} ({{ entryType.handle }})</td>
+                        <td>
+                            {{ forms.lightswitch({
+                                name:  "excludedSections["~section.handle~"][]",
+                                value: entryType.handle,
+                                on:    settings['excludedSections'][section.handle] is defined and entryType.handle in settings['excludedSections'][section.handle],
+                                small: true,
+                            }) }}
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
