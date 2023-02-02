@@ -13,9 +13,9 @@ class WebRequest
         $customConfig = Craft::$app->config->getConfigFromFile('incremental-static-regeneration');
 
         return Craft::createGuzzleClient([
-            'base_uri' => $customConfig["endpoint"],
+            'base_uri' => $customConfig["isrEndpoint"],
             'headers'  => [
-                'Authorization' => $customConfig["secret"],
+                'Authorization' => $customConfig["isrSecret"],
             ],
         ]);
     }

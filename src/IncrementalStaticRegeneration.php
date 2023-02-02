@@ -9,7 +9,9 @@ use craft\elements\Asset;
 use craft\elements\Entry;
 use craft\elements\GlobalSet;
 use craft\events\ModelEvent;
+use craft\events\RegisterPreviewTargetsEvent;
 use craft\helpers\ElementHelper;
+use craft\helpers\UrlHelper;
 use everyday\IncrementalStaticRegeneration\jobs\MakeRequest;
 use everyday\IncrementalStaticRegeneration\models\Settings;
 use yii\base\Event;
@@ -28,6 +30,130 @@ class IncrementalStaticRegeneration extends Plugin
         parent::__construct($id, $parent, $config);
 
         $this->queue = Craft::$app->getQueue();
+    }
+
+    public function init(): void
+    {
+        parent::init();
+
+        $this->initializeEvents();
+        $this->setupPreviewTargets();
+    }
+
+    private function setupPreviewTargets(): void
+    {
+        $settings = $this->getSettings();
+
+        Event::on(
+            Entry::class,
+            Element::EVENT_REGISTER_PREVIEW_TARGETS,
+            function (RegisterPreviewTargetsEvent $event) use ($settings) {
+                if (!$settings->enablePreviews) {
+                    return;
+                }
+
+                $element = $event->sender;
+                if ($element->uri !== null) {
+                    // Remove the default preview target, if any. We want to be the default
+                    if ($settings->removeDefaultPreviewTarget && isset($event->previewTargets[0]['label']) && $event->previewTargets[0]['label'] === Craft::t('app',
+                            'Primary {type} page', [
+                                'type' => 'entry',
+                            ])) {
+                        array_shift($event->previewTargets);
+                    }
+
+                    // We want to be the default preview target, if possible
+                    array_unshift($event->previewTargets, [
+                        'label'   => Craft::t($this->handle, 'Live preview'),
+                        'url'     => UrlHelper::siteUrl($settings->previewEndpoint, [
+                            'uri'    => "/$element->uri",
+                            'site'   => $element->site->handle,
+                            'secret' => $settings->previewSecret,
+                        ]),
+                        'refresh' => "1",
+                    ]);
+                }
+            });
+    }
+
+    private function initializeEvents(): void
+    {
+        $settings = $this->getSettings();
+
+        $defaultEvents = [
+            [
+                'class'   => Entry::class,
+                'event'   => Entry::EVENT_AFTER_SAVE,
+                'handler' => function (ModelEvent $event) {
+                    return $this->entryEvent($event);
+                },
+            ],
+            [
+                'class'   => Entry::class,
+                'event'   => Entry::EVENT_AFTER_DELETE,
+                'handler' => function (Event $event) {
+                    return $this->entryEvent($event);
+                },
+            ],
+            [
+                'class'   => Asset::class,
+                'event'   => Asset::EVENT_AFTER_SAVE,
+                'handler' => function (ModelEvent $event) {
+                    return $this->assetAfterSaveEvent($event);
+                },
+            ],
+            [
+                'class'   => GlobalSet::class,
+                'event'   => GlobalSet::EVENT_AFTER_SAVE,
+                'handler' => function (ModelEvent $event) use ($settings) {
+                    return $this->globalSetAfterSaveEvent($event, $settings);
+                },
+            ],
+        ];
+
+        $additionalEvents = $settings->additionalEvents ?? [];
+        $allEvents        = [...$defaultEvents, ...$additionalEvents];
+
+        // Intelligently merge events where 'class' and 'event' are the same in order to bulk run the handlers and deduplicate values
+        $deduplicatedEvents = [];
+        foreach ($allEvents as $row) {
+            if (isset($deduplicatedEvents[$row['class']][$row['event']])) {
+                $deduplicatedEvents[$row['class']][$row['event']] = [
+                    ...$deduplicatedEvents[$row['class']][$row['event']], $row['handler'],
+                ];
+
+                continue;
+            }
+
+            $deduplicatedEvents[$row['class']][$row['event']] = [$row['handler']];
+        }
+
+        foreach ($deduplicatedEvents as $class => $events) {
+            foreach ($events as $event => $handlers) {
+                Event::on(
+                    $class,
+                    $event,
+                    function ($eventPayload) use ($handlers) {
+                        $result = array_unique(array_merge(...
+                            array_map(static fn($handler) => $handler($eventPayload) ?? [], $handlers)));
+
+                        if (!$result) {
+                            return;
+                        }
+
+                        foreach ($result as $uri) {
+                            if (!$uri) {
+                                continue;
+                            }
+
+                            $this->queue->push(new MakeRequest([
+                                'uri' => $uri,
+                            ]));
+                        }
+                    }
+                );
+            }
+        }
     }
 
     private function getRelatedUris(Element $element): array
@@ -106,88 +232,6 @@ class IncrementalStaticRegeneration extends Plugin
         }
 
         return $this->getAllUris();
-    }
-
-    public function init(): void
-    {
-        parent::init();
-
-        $settings = $this->getSettings();
-
-        $defaultEvents = [
-            [
-                'class'   => Entry::class,
-                'event'   => Entry::EVENT_AFTER_SAVE,
-                'handler' => function (ModelEvent $event) {
-                    return $this->entryEvent($event);
-                },
-            ],
-            [
-                'class'   => Entry::class,
-                'event'   => Entry::EVENT_AFTER_DELETE,
-                'handler' => function (Event $event) {
-                    return $this->entryEvent($event);
-                },
-            ],
-            [
-                'class'   => Asset::class,
-                'event'   => Asset::EVENT_AFTER_SAVE,
-                'handler' => function (ModelEvent $event) {
-                    return $this->assetAfterSaveEvent($event);
-                },
-            ],
-            [
-                'class'   => GlobalSet::class,
-                'event'   => GlobalSet::EVENT_AFTER_SAVE,
-                'handler' => function (ModelEvent $event) use ($settings) {
-                    return $this->globalSetAfterSaveEvent($event, $settings);
-                },
-            ],
-        ];
-
-        $additionalEvents = $settings->additionalEvents ?? [];
-        $allEvents        = [...$defaultEvents, ...$additionalEvents];
-
-        // Intelligently merge events where 'class' and 'event' are the same in order to bulk run the handlers and deduplicate values
-        $deduplicatedEvents = [];
-        foreach ($allEvents as $row) {
-            if (isset($deduplicatedEvents[$row['class']][$row['event']])) {
-                $deduplicatedEvents[$row['class']][$row['event']] = [
-                    ...$deduplicatedEvents[$row['class']][$row['event']], $row['handler'],
-                ];
-
-                continue;
-            }
-
-            $deduplicatedEvents[$row['class']][$row['event']] = [$row['handler']];
-        }
-
-        foreach ($deduplicatedEvents as $class => $events) {
-            foreach ($events as $event => $handlers) {
-                Event::on(
-                    $class,
-                    $event,
-                    function ($eventPayload) use ($handlers) {
-                        $result = array_unique(array_merge(...
-                            array_map(static fn($handler) => $handler($eventPayload) ?? [], $handlers)));
-
-                        if (!$result) {
-                            return;
-                        }
-
-                        foreach ($result as $uri) {
-                            if (!$uri) {
-                                continue;
-                            }
-
-                            $this->queue->push(new MakeRequest([
-                                'uri' => $uri,
-                            ]));
-                        }
-                    }
-                );
-            }
-        }
     }
 
     /**

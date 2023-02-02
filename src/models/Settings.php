@@ -8,8 +8,12 @@ use Everyday\IncrementalStaticRegeneration\IncrementalStaticRegeneration;
 
 class Settings extends Model
 {
-    public string $endpoint = 'http://127.0.0.1:3000/api/revalidate';
-    public string $secret = 'secret';
+    public string $isrEndpoint = 'http://localhost:3000/api/revalidate';
+    public string $isrSecret = 'secret';
+    public bool $enablePreviews = true;
+    public string $previewEndpoint = 'http://localhost:3000/api/preview';
+    public string $previewSecret = 'secret';
+    public bool $removeDefaultPreviewTarget = false;
     public array $additionalEvents = [];
     public bool $enableGlobalSets = true;
     public bool $enableAssets = true;
@@ -23,10 +27,18 @@ class Settings extends Model
     public function rules(): array
     {
         return [
-            ['endpoint', 'required', 'message' => Craft::t(IncrementalStaticRegeneration::PLUGIN_HANDLE, 'Endpoint URL is required')],
-            ['endpoint', 'url', 'defaultScheme' => 'http', 'pattern' => '/^{schemes}:\/\/(([A-Z0-9][A-Z0-9_-]*)(\.?[A-Z0-9][A-Z0-9_-]*)+)(?::\d{1,5})?(?:$|[?\/#])/i'],
-            ['endpoint', 'default', 'value' => 'http://localhost:3000/api/revalidate'],
-            ['secret', 'string'],
+            // ISR endpoint
+            ['isrEndpoint', 'required', 'message' => Craft::t(IncrementalStaticRegeneration::PLUGIN_HANDLE, 'ISR endpoint URL is required')],
+            ['isrEndpoint', 'url', 'defaultScheme' => 'http', 'pattern' => '/^{schemes}:\/\/(([A-Z0-9][A-Z0-9_-]*)(\.?[A-Z0-9][A-Z0-9_-]*)+)(?::\d{1,5})?(?:$|[?\/#])/i'],
+            ['isrEndpoint', 'default', 'value' => 'http://localhost:3000/api/revalidate'],
+            // ISR secret
+            ['isrSecret', 'string'],
+            // Preview endpoint
+            ['previewEndpoint', 'required', 'message' => Craft::t(IncrementalStaticRegeneration::PLUGIN_HANDLE, 'Preview endpoint URL is required')],
+            ['previewEndpoint', 'url', 'defaultScheme' => 'http', 'pattern' => '/^{schemes}:\/\/(([A-Z0-9][A-Z0-9_-]*)(\.?[A-Z0-9][A-Z0-9_-]*)+)(?::\d{1,5})?(?:$|[?\/#])/i'],
+            ['previewEndpoint', 'default', 'value' => 'http://localhost:3000/api/preview'],
+            // Preview secret
+            ['previewSecret', 'string'],
         ];
     }
 }

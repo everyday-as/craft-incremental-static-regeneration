@@ -2,36 +2,94 @@
 {% import "incremental-static-regeneration/cp/macros" as macros %}
 
 <div>
-    <h2>{{ 'ISR Endpoint'|t('incremental-static-regeneration') }}</h2>
-
     {% if settings.hasErrors('global') %}
         {% include "_includes/forms/errorList" with { errors: settings.getErrors('global') } %}
     {% endif %}
 
+    <h2>{{ 'ISR'|t('incremental-static-regeneration') }}</h2>
+
+    <p>
+        This requires some setting up in your front-end. If you are using NextJS you can follow the following documentation: <a
+                href="https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration" target="_blank">https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration</a>
+    </p>
+
     {{ forms.textField({
         first:        true,
-        label:        'Endpoint URL'|t('incremental-static-regeneration'),
-        instructions: 'The URL of your frontend API that will trigger an ISR'|t('incremental-static-regeneration'),
+        label:        'ISR endpoint URL'|t('incremental-static-regeneration'),
+        instructions: 'The URL to your ISR revalidation API endpoint'|t('incremental-static-regeneration'),
         placeholder:  'http://localhost:3000/api/revalidate',
-        id:           'endpoint',
-        name:         'endpoint',
-        value:        settings['endpoint'],
-        errors:       settings.getErrors('endpoint'),
-        warning:      'endpoint' in overrides ? macros.configWarning('endpoint'),
-        disabled:     'endpoint' in overrides,
+        id:           'isrEndpoint',
+        name:         'isrEndpoint',
+        value:        settings['isrEndpoint'],
+        errors:       settings.getErrors('isrEndpoint'),
+        warning:      'isrEndpoint' in overrides ? macros.configWarning('isrEndpoint'),
+        disabled:     'isrEndpoint' in overrides,
     }) }}
 
     {{ forms.passwordField({
-        label:        'Secret'|t('incremental-static-regeneration'),
-        instructions: 'The secret key we will send along the request in the `Authorization` header'|t('incremental-static-regeneration'),
+        label:        'ISR secret'|t('incremental-static-regeneration'),
+        instructions: 'The secret key we will send along the request in the `Authorization` header to your ISR endpoint'|t('incremental-static-regeneration'),
         placeholder:  '',
-        id:           'secret',
-        name:         'secret',
-        value:        settings['secret'],
-        errors:       settings.getErrors('secret'),
-        warning:      'secret' in overrides ? macros.configWarning('secret'),
-        disabled:     'secret' in overrides,
+        id:           'isrSecret',
+        name:         'isrSecret',
+        value:        settings['isrSecret'],
+        errors:       settings.getErrors('isrSecret'),
+        warning:      'isrSecret' in overrides ? macros.configWarning('isrSecret'),
+        disabled:     'isrSecret' in overrides,
     }) }}
+
+    <h2>{{ 'Previews'|t('incremental-static-regeneration') }}</h2>
+
+    <p>
+        This requires some setting up in your front-end. If you are using NextJS you can follow the following documentation: <a
+                href="https://nextjs.org/docs/advanced-features/preview-mode" target="_blank">https://nextjs.org/docs/advanced-features/preview-mode</a>
+    </p>
+
+    {{ forms.lightswitch({
+        name:  "enablePreviews",
+        id:  "enablePreviews",
+        on:    settings['enablePreviews'],
+        toggle: 'preview_settings',
+        label: 'Enable previews that skip ISR',
+        warning:  'enablePreviews' in overrides ? macros.configWarning('enablePreviews'),
+        disabled: 'enablePreviews' in overrides,
+    }) }}
+
+    <div id="preview_settings"{% if not settings['enablePreviews'] %} class="hidden" {% endif %} style="padding-top: 20px;">
+        {{ forms.textField({
+            first:        true,
+            label:        'Preview endpoint URL'|t('incremental-static-regeneration'),
+            instructions: 'The URL for your preview front-end preview API endpoint'|t('incremental-static-regeneration'),
+            placeholder:  'http://localhost:3000/api/preview',
+            id:           'previewEndpoint',
+            name:         'previewEndpoint',
+            value:        settings['previewEndpoint'],
+            errors:       settings.getErrors('previewEndpoint'),
+            warning:      'previewEndpoint' in overrides ? macros.configWarning('previewEndpoint'),
+            disabled:     'previewEndpoint' in overrides,
+        }) }}
+
+        {{ forms.passwordField({
+            label:        'Preview secret'|t('incremental-static-regeneration'),
+            instructions: 'The secret key we will send along the preview request in the `secret` query parameter'|t('incremental-static-regeneration'),
+            placeholder:  '',
+            id:           'previewSecret',
+            name:         'previewSecret',
+            value:        settings['previewSecret'],
+            errors:       settings.getErrors('previewSecret'),
+            warning:      'previewSecret' in overrides ? macros.configWarning('previewSecret'),
+            disabled:     'previewSecret' in overrides,
+        }) }}
+
+        {{ forms.lightswitch({
+            name:  "removeDefaultPreviewTarget",
+            id:  "removeDefaultPreviewTarget",
+            on:    settings['removeDefaultPreviewTarget'],
+            label: 'Remove the default preview target from the preview target list. Useful if you are lazy and do not want to do it yourself',
+            warning:  'removeDefaultPreviewTarget' in overrides ? macros.configWarning('removeDefaultPreviewTarget'),
+            disabled: 'removeDefaultPreviewTarget' in overrides,
+        }) }}
+    </div>
 
     <h2>{{ 'Assets'|t('incremental-static-regeneration') }}</h2>
 
