@@ -24,7 +24,8 @@ Check out the [wiki](https://github.com/everyday-as/incremental-static-regenerat
 
 ## Local development
 
-You probably don't need to worry about this.
+<details>
+  <summary>You probably don't need this, so we've collapsed this section.</summary>
 
 ### Installing the Composer dependencies:
 
@@ -36,3 +37,4 @@ docker run --rm \
     craftcms/cli:8.1-dev \
     composer install --ignore-platform-reqs
 ```
+</details>
