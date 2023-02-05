@@ -14,7 +14,7 @@ class Settings extends Model
     public string $previewEndpoint = 'http://localhost:3000/api/preview';
     public string $previewSecret = 'secret';
     public bool $removeDefaultPreviewTarget = false;
-    public array $additionalEvents = [];
+    public array $additionalTriggers = [];
     public bool $enableGlobalSets = true;
     public bool $enableAssets = true;
     public array $excludedGlobalSets = [];

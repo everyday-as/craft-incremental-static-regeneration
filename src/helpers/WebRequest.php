@@ -4,18 +4,20 @@ namespace everyday\IncrementalStaticRegeneration\helpers;
 
 use Craft;
 use craft\elements\Entry;
+use everyday\IncrementalStaticRegeneration\IncrementalStaticRegeneration;
 use GuzzleHttp\Client;
 
 class WebRequest
 {
     private static function webClient(): Client
     {
-        $customConfig = Craft::$app->config->getConfigFromFile('incremental-static-regeneration');
+        $plugin   = IncrementalStaticRegeneration::getInstance();
+        $settings = $plugin->getSettings();
 
         return Craft::createGuzzleClient([
-            'base_uri' => $customConfig["isrEndpoint"],
+            'base_uri' => $settings->isrEndpoint,
             'headers'  => [
-                'Authorization' => $customConfig["isrSecret"],
+                'Authorization' => $settings->isrSecret,
             ],
         ]);
     }
@@ -32,7 +34,15 @@ class WebRequest
 
             $siteHandle = $entry->site->handle;
 
-            self::webClient()->post("?uri=/$uri&site=$siteHandle");
+            self::webClient()->post("", [
+                'headers' => [
+                    'Content-Type' => 'application/json',
+                ],
+                'body'    => json_encode([
+                    'uri'  => $uri,
+                    'site' => $siteHandle,
+                ]),
+            ]);
         }
     }
 }

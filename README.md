@@ -16,7 +16,7 @@ composer require everyday/craft-incremental-static-regeneration
 - Regenerate all entries that use a specific asset when an asset is updated.
 - Bypass ISR in preview mode.
 - Exclude specific globals or sections from sending a request to your front-end's API.
-- Allows adding custom events to accommodate any other use cases you may have.
+- Allows adding custom triggers to accommodate any other use cases you may have.
 
 ## Usage
 

@@ -33,7 +33,7 @@ return [
             },
         ],
     */
-    'additionalEvents' => [],
+    'additionalTriggers' => [],
 
     // Enable re-validation of related entries when assets are updated
     'enableAssets' => true,

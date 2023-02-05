@@ -5,38 +5,28 @@ namespace everyday\IncrementalStaticRegeneration;
 use Craft;
 use craft\base\Element;
 use craft\base\Plugin;
-use craft\elements\Asset;
 use craft\elements\Entry;
-use craft\elements\GlobalSet;
-use craft\events\ModelEvent;
 use craft\events\RegisterPreviewTargetsEvent;
-use craft\helpers\ElementHelper;
 use craft\helpers\UrlHelper;
-use everyday\IncrementalStaticRegeneration\jobs\MakeRequest;
 use everyday\IncrementalStaticRegeneration\models\Settings;
+use everyday\IncrementalStaticRegeneration\services\Triggers;
 use yii\base\Event;
-use yii\queue\Queue;
 
 class IncrementalStaticRegeneration extends Plugin
 {
     public const PLUGIN_HANDLE = "incremental-static-regeneration";
 
-    private Queue $queue;
-
     public bool $hasCpSettings = true;
-
-    public function __construct($id, $parent = null, array $config = [])
-    {
-        parent::__construct($id, $parent, $config);
-
-        $this->queue = Craft::$app->getQueue();
-    }
 
     public function init(): void
     {
         parent::init();
 
-        $this->initializeEvents();
+        $this->setComponents([
+            'triggers' => Triggers::class
+        ]);
+
+        $this->triggers->initialize($this->getSettings());
         $this->setupPreviewTargets();
     }
 
@@ -76,162 +66,13 @@ class IncrementalStaticRegeneration extends Plugin
             });
     }
 
-    private function initializeEvents(): void
+    public static function config(): array
     {
-        $settings = $this->getSettings();
-
-        $defaultEvents = [
-            [
-                'class'   => Entry::class,
-                'event'   => Entry::EVENT_AFTER_SAVE,
-                'handler' => function (ModelEvent $event) {
-                    return $this->entryEvent($event);
-                },
-            ],
-            [
-                'class'   => Entry::class,
-                'event'   => Entry::EVENT_AFTER_DELETE,
-                'handler' => function (Event $event) {
-                    return $this->entryEvent($event);
-                },
-            ],
-            [
-                'class'   => Asset::class,
-                'event'   => Asset::EVENT_AFTER_SAVE,
-                'handler' => function (ModelEvent $event) {
-                    return $this->assetAfterSaveEvent($event);
-                },
-            ],
-            [
-                'class'   => GlobalSet::class,
-                'event'   => GlobalSet::EVENT_AFTER_SAVE,
-                'handler' => function (ModelEvent $event) use ($settings) {
-                    return $this->globalSetAfterSaveEvent($event, $settings);
-                },
-            ],
-        ];
-
-        $additionalEvents = $settings->additionalEvents ?? [];
-        $allEvents        = [...$defaultEvents, ...$additionalEvents];
-
-        // Intelligently merge events where 'class' and 'event' are the same in order to bulk run the handlers and deduplicate values
-        $deduplicatedEvents = [];
-        foreach ($allEvents as $row) {
-            if (isset($deduplicatedEvents[$row['class']][$row['event']])) {
-                $deduplicatedEvents[$row['class']][$row['event']] = [
-                    ...$deduplicatedEvents[$row['class']][$row['event']], $row['handler'],
-                ];
-
-                continue;
-            }
-
-            $deduplicatedEvents[$row['class']][$row['event']] = [$row['handler']];
-        }
-
-        foreach ($deduplicatedEvents as $class => $events) {
-            foreach ($events as $event => $handlers) {
-                Event::on(
-                    $class,
-                    $event,
-                    function ($eventPayload) use ($handlers) {
-                        $result = array_unique(array_merge(...
-                            array_map(static fn($handler) => $handler($eventPayload) ?? [], $handlers)));
-
-                        if (!$result) {
-                            return;
-                        }
-
-                        foreach ($result as $uri) {
-                            if (!$uri) {
-                                continue;
-                            }
-
-                            $this->queue->push(new MakeRequest([
-                                'uri' => $uri,
-                            ]));
-                        }
-                    }
-                );
-            }
-        }
-    }
-
-    private function getRelatedUris(Element $element): array
-    {
-        $entries = array_filter(Entry::find()
-                                     ->site('*')
-                                     ->uri(':notempty:')
-                                     ->relatedTo($element)
-                                     ->all(), fn($entry) => !$this->entryEntryTypeDisabled($entry));
-
-        return array_map(static fn($entry) => $entry->uri, $entries);
-    }
-
-    private function entryEntryTypeDisabled(Entry $entry): bool
-    {
-        $settings = $this->getSettings();
-
-        foreach ($entry->section->entryTypes as $entryType) {
-            if (in_array($entryType->handle, $settings->excludedSections[$entry->section->handle] ?? [],
-                true)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private function getAllUris(): array
-    {
-        $entries = array_filter(Entry::find()
-                                     ->uri(':notempty:')
-                                     ->all(), fn($entry) => !$this->entryEntryTypeDisabled($entry));
-
-        return array_map(static fn($entry) => $entry->uri, $entries);
-    }
-
-    private function entryEvent(ModelEvent|Event $event): ?array
-    {
-        if ($this->entryEntryTypeDisabled($event->sender)) {
-            return null;
-        }
-
-        if (ElementHelper::isDraft($event->sender)
-            || !$event->sender->getEnabledForSite()
-            || ElementHelper::isRevision($event->sender)) {
-            return null;
-        }
-
         return [
-            ...$this->getRelatedUris($event->sender),
-            $event->sender->uri,
+            'components' => [
+                'triggers' => ['class' => Triggers::class],
+            ],
         ];
-    }
-
-    private function assetAfterSaveEvent(ModelEvent $event): ?array
-    {
-        $settings = $this->getSettings();
-
-        if (!$settings?->enableAssets
-            || !$event->sender->propagating
-            || !$event->sender->enabled
-            || !$event->sender->getEnabledForSite()) {
-            return null;
-        }
-
-        return $this->getRelatedUris($event->sender);
-    }
-
-    private function globalSetAfterSaveEvent(ModelEvent $event, ?Settings $settings): ?array
-    {
-        if (!$settings?->enableGlobalSets
-            || !$event->sender->enabled
-            || !$event->sender->getEnabledForSite()
-            || in_array($event->sender->handle, $settings?->excludedGlobalSets ?? [], true)) {
-            return null;
-        }
-
-        return $this->getAllUris();
     }
 
     /**
