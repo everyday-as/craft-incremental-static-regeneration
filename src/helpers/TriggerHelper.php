@@ -17,7 +17,7 @@ class TriggerHelper
                                      ->site('*')
                                      ->uri(':notempty:')
                                      ->relatedTo($element)
-                                     ->all(), fn($entry) => !$this->entryEntryTypeDisabled($entry, $settings));
+                                     ->all(), fn($entry) => !self::entryEntryTypeDisabled($entry, $settings));
 
         return array_map(static fn($entry) => $entry->uri, $entries);
     }
@@ -38,7 +38,7 @@ class TriggerHelper
     {
         $entries = array_filter(Entry::find()
                                      ->uri(':notempty:')
-                                     ->all(), fn($entry) => !$this->entryEntryTypeDisabled($entry, $settings));
+                                     ->all(), fn($entry) => !self::entryEntryTypeDisabled($entry, $settings));
 
         return array_map(static fn($entry) => $entry->uri, $entries);
     }

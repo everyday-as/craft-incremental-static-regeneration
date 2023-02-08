@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.2.1
+- Fix an error where we used `$this` in a static context.
+
 ## 1.2.0
 - The ISR request now uses a POST body instead of URL parameters
 - Introduced a `Triggers` service
