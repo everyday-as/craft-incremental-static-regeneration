@@ -165,7 +165,7 @@
             </tr>
             </thead>
             <tbody>
-            {% for section in craft.app.sections.allSections %}
+            {% for section in craft.app.getEntries().getEditableSections() %}
                 {% for entryType in section.entryTypes %}
                     <tr data-id="default">
                         <th>{{ section.type|ucfirst }}</th>
