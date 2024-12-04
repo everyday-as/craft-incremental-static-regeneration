@@ -8,6 +8,7 @@ use craft\events\ModelEvent;
 use craft\helpers\ElementHelper;
 use everyday\IncrementalStaticRegeneration\models\Settings;
 use yii\base\Event;
+use yii\base\InvalidConfigException;
 
 class TriggerHelper
 {
@@ -24,8 +25,14 @@ class TriggerHelper
 
     private static function entryEntryTypeDisabled(Entry $entry, Settings $settings): bool
     {
-        foreach ($entry->section->entryTypes as $entryType) {
-            if (in_array($entryType->handle, $settings->excludedSections[$entry->section->handle] ?? [],
+        $section = $entry->getSection();
+
+        if(!$section) {
+            return true;
+        }
+
+        foreach ($section->getEntryTypes() as $entryType) {
+            if (in_array($entryType->handle, $settings->excludedSections[$section->handle] ?? [],
                 true)) {
                 return true;
             }
